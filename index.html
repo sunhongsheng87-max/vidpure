@@ -597,7 +597,7 @@ parseBtn.addEventListener("click", async () => {
   setLoading(true);
 
   try {
-    // VidPure Worker proxy → api.douyin.wtf (with CORS headers)
+    // VidPure Worker proxy (handles multiple backends + CORS)
     const apiUrl = "https://vidpure-api.sunhongsheng87.workers.dev/?url=" + encodeURIComponent(url);
     const response = await fetch(apiUrl, {
       method: "GET",
@@ -610,29 +610,16 @@ parseBtn.addEventListener("click", async () => {
 
     const data = await response.json();
 
-    // Parse nested response structure
-    if (!data || (data.code && data.code !== 200 && data.code !== 0)) {
-      const msg = (data && data.msg) || (data && data.message) || "解析失败，请检查链接";
-      throw new Error(msg);
+    // Worker returns normalized { title, cover, video_url, author, duration }
+    if (!data || data.error) {
+      throw new Error((data && data.error) || "解析失败，请检查链接");
     }
 
-    // The API nests video info differently depending on platform
-    const info = (data.data && data.data["视频信息"])  // Douyin format
-      || (data.data && data.data)                       // generic
-      || data;                                          // bare response
-
-    // Extract video URL — try multiple possible field names
-    const videoUrl = (typeof info === "string")
-      ? info
-      : (info["无水印链接"] || info["无水印下载地址"] || info["视频下载地址"]
-        || info["watermark_free_url"] || info["download_url"] || info["video_url"]
-        || info["play"] || info["wmplay"] || info["hdplay"]);
-
-    // Extract metadata
-    const title = (info["标题"] || info["title"] || info["desc"] || "视频");
-    const cover = (info["封面"] || info["cover"] || info["thumbnail"] || "");
-    const author = (info["作者"] || info["author"] || info["nickname"] || "");
-    const duration = (info["时长"] || info["duration"] || "");
+    const videoUrl = data.video_url;
+    const title = data.title || "视频";
+    const cover = data.cover || "";
+    const author = data.author || "";
+    const duration = data.duration || "";
 
     if (!videoUrl) {
       throw new Error("未获取到下载地址，该视频可能无法下载");
