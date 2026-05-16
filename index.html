@@ -553,19 +553,44 @@ function setLoading(loading) {
     : '&#x1f50d; 解析并下载';
 }
 
+// ── URL extraction ──
+function extractURL(raw) {
+  // Match https?://... URLs, stopping at whitespace or common trailing garbage
+  const re = /https?:\/\/[^\s一-鿿　-〿＀-￯ -⁯<>"{}|\\^`[\]]+/gi;
+  const matches = raw.match(re);
+  if (!matches) return null;
+
+  // Pick the longest match (most likely the real video URL, not a shortlink in text)
+  let best = matches[0];
+  for (let i = 1; i < matches.length; i++) {
+    if (matches[i].length > best.length) best = matches[i];
+  }
+
+  // Strip trailing punctuation that isn't part of the URL
+  best = best.replace(/[。,，!！?？:：;；、。…]+$/, '');
+  return best;
+}
+
 // ── Parse & download ──
 parseBtn.addEventListener("click", async () => {
-  const url = urlInput.value.trim();
-  if (!url) {
+  const raw = urlInput.value.trim();
+  if (!raw) {
     showToast("请先粘贴视频链接", "error");
     urlInput.focus();
     return;
   }
 
-  // Basic URL validation
-  try { new URL(url); } catch {
-    showToast("链接格式不正确，请检查", "error");
+  const url = extractURL(raw);
+  if (!url) {
+    showToast("未检测到有效链接，请检查后重试", "error");
+    urlInput.focus();
     return;
+  }
+
+  // If extraction happened, replace the input with the clean URL so the user sees what was used
+  if (url !== raw) {
+    urlInput.value = url;
+    clearBtn.disabled = false;
   }
 
   resultCard.classList.remove("visible");
