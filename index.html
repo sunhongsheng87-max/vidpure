@@ -597,8 +597,8 @@ parseBtn.addEventListener("click", async () => {
   setLoading(true);
 
   try {
-    // api.douyin.wtf — public demo of Douyin_TikTok_Download_API, no auth
-    const apiUrl = "https://api.douyin.wtf/api/hybrid/video_data?url=" + encodeURIComponent(url) + "&minimal=false";
+    // VidPure Worker proxy → api.douyin.wtf (with CORS headers)
+    const apiUrl = "https://vidpure-api.sunhongsheng87.workers.dev/?url=" + encodeURIComponent(url);
     const response = await fetch(apiUrl, {
       method: "GET",
       headers: { "Accept": "application/json" }
