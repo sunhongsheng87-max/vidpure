@@ -28,6 +28,12 @@ export default {
   }
 };
 
+function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 async function tryBackends(videoUrl) {
   // Backend 1: tikwm (TikTok/Douyin, Cloudflare network may bypass protection)
   try {
@@ -47,12 +53,12 @@ async function tryBackends(videoUrl) {
 // ── tikwm backend ──
 async function tikwm(videoUrl) {
   const apiUrl = "https://www.tikwm.com/api/?hd=1&url=" + encodeURIComponent(videoUrl);
-  const res = await fetch(apiUrl, {
+  const res = await fetchWithTimeout(apiUrl, {
     headers: {
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
-  });
+  }, 8000);
 
   if (!res.ok) throw new Error("tikwm status " + res.status);
 
@@ -77,12 +83,12 @@ async function douyinwtf(videoUrl) {
   const apiUrl = "https://api.douyin.wtf/api/hybrid/video_data?url="
     + encodeURIComponent(videoUrl) + "&minimal=false";
 
-  const res = await fetch(apiUrl, {
+  const res = await fetchWithTimeout(apiUrl, {
     headers: {
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
-  });
+  }, 8000);
 
   if (!res.ok) throw new Error("douyinwtf status " + res.status);
 
