@@ -463,8 +463,8 @@ footer a { color: var(--accent); text-decoration: none; }
 </main>
 
 <footer>
-  <p>基于 <a href="https://www.tikwm.com/" target="_blank" rel="noopener">tikwm</a> 公开 API &nbsp;|&nbsp; 仅供个人学习使用</p>
-  <p>支持抖音、TikTok 无水印下载</p>
+  <p>基于 <a href="https://github.com/Evil0ctal/Douyin_TikTok_Download_API" target="_blank" rel="noopener">Douyin_TikTok_Download_API</a> &nbsp;|&nbsp; 仅供个人学习使用</p>
+  <p>支持抖音、TikTok、B站、快手等平台</p>
 </footer>
 
 <div class="toast-container" id="toastContainer"></div>
@@ -597,15 +597,11 @@ parseBtn.addEventListener("click", async () => {
   setLoading(true);
 
   try {
-    // tikwm.com API — free, no auth, supports TikTok/Douyin
-    const formBody = new URLSearchParams({ url: url });
-    const response = await fetch("https://www.tikwm.com/api/", {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: formBody.toString()
+    // api.douyin.wtf — public demo of Douyin_TikTok_Download_API, no auth
+    const apiUrl = "https://api.douyin.wtf/api/hybrid/video_data?url=" + encodeURIComponent(url) + "&minimal=false";
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: { "Accept": "application/json" }
     });
 
     if (!response.ok) {
@@ -614,36 +610,48 @@ parseBtn.addEventListener("click", async () => {
 
     const data = await response.json();
 
-    if (!data || data.code !== 0) {
-      const msg = (data && data.msg) || "解析失败，请检查链接是否有效";
+    // Parse nested response structure
+    if (!data || (data.code && data.code !== 200 && data.code !== 0)) {
+      const msg = (data && data.msg) || (data && data.message) || "解析失败，请检查链接";
       throw new Error(msg);
     }
 
-    const d = data.data;
-    if (!d) {
-      throw new Error("未获取到视频数据，请检查链接");
+    // The API nests video info differently depending on platform
+    const info = (data.data && data.data["视频信息"])  // Douyin format
+      || (data.data && data.data)                       // generic
+      || data;                                          // bare response
+
+    // Extract video URL — try multiple possible field names
+    const videoUrl = (typeof info === "string")
+      ? info
+      : (info["无水印链接"] || info["无水印下载地址"] || info["视频下载地址"]
+        || info["watermark_free_url"] || info["download_url"] || info["video_url"]
+        || info["play"] || info["wmplay"] || info["hdplay"]);
+
+    // Extract metadata
+    const title = (info["标题"] || info["title"] || info["desc"] || "视频");
+    const cover = (info["封面"] || info["cover"] || info["thumbnail"] || "");
+    const author = (info["作者"] || info["author"] || info["nickname"] || "");
+    const duration = (info["时长"] || info["duration"] || "");
+
+    if (!videoUrl) {
+      throw new Error("未获取到下载地址，该视频可能无法下载");
     }
 
-    // Use watermark-free URL if available, otherwise fallback to regular
-    currentVideoUrl = d.wmplay || d.play || d.hdplay;
-    currentFilename = (d.title || d.id || "video") + ".mp4";
-
-    if (!currentVideoUrl) {
-      throw new Error("未获取到下载地址，该视频可能不支持下载");
-    }
+    currentVideoUrl = videoUrl;
+    currentFilename = title.replace(/[\/:*?"<>|]/g, "_") + ".mp4";
 
     // Update UI
-    if (d.cover) {
-      resultPreview.innerHTML = `<img src="${d.cover}" alt="封面" loading="lazy">`;
+    if (cover) {
+      resultPreview.innerHTML = `<img src="${cover}" alt="封面" loading="lazy">`;
     } else {
       resultPreview.innerHTML = '<div class="placeholder">&#x1f3ac;</div>';
     }
 
-    resultTitle.textContent = d.title || "视频";
+    resultTitle.textContent = title;
     resultMeta.textContent = [
-      d.author ? `@${d.author}` : "",
-      d.duration ? `${d.duration}s` : "",
-      d.size ? formatSize(d.size) : ""
+      author ? `@${author}` : "",
+      duration ? `${duration}s` : ""
     ].filter(Boolean).join(" · ") || currentFilename;
 
     resultCard.classList.add("visible");
