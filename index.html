@@ -608,7 +608,10 @@ parseBtn.addEventListener("click", async () => {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      const msg = errData.error || errData.text || `服务器返回错误 (${response.status})`;
+      const e = errData.error;
+      const msg = (typeof e === 'object' && e ? (e.message || e.code) : e)
+        || errData.text
+        || `服务器返回错误 (${response.status})`;
       throw new Error(msg);
     }
 
@@ -616,7 +619,11 @@ parseBtn.addEventListener("click", async () => {
 
     // Cobalt API returns different shapes depending on status
     if (data.status === "error" || data.error) {
-      throw new Error(data.error?.message || data.text || "解析失败，请检查链接");
+      const e = data.error;
+      const msg = (typeof e === 'object' && e ? (e.message || e.code) : e)
+        || data.text
+        || "解析失败，请检查链接";
+      throw new Error(msg);
     }
 
     if (data.status === "redirect") {
